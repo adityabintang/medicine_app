@@ -131,7 +131,7 @@ class DashboardScreen extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
           gradient: LinearGradient(
-            colors: [color.withOpacity(0.85), color],
+            colors: [color.withValues(alpha: 0.85), color],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -140,7 +140,7 @@ class DashboardScreen extends StatelessWidget {
         child: Row(
           children: [
             CircleAvatar(
-              backgroundColor: Colors.white.withOpacity(0.2),
+              backgroundColor: Colors.white.withValues(alpha: .2),
               radius: 28,
               child: Icon(
                 icon,

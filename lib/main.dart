@@ -1,22 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'dashboard_screen.dart';
-import 'settings_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: const FirebaseOptions(
-      apiKey: "AIzaSyBiSJF5ziZz5XHKJvIAiR83_CYmk2kvKlA",
-      authDomain: "medicinie-app.firebaseapp.com",
-      projectId: "medicinie-app",
-      storageBucket: "medicinie-app.firebasestorage.app",
-      messagingSenderId: "454090128372",
-      appId: "1:454090128372:web:8e6c676f439ac02a7797a1",
-      measurementId: "G-RHVCQDLC4H",
-    ),
-  );
   runApp(const MyApp());
 }
 
@@ -159,9 +146,6 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
       case 1:
         // Profile Tab (Matches Screen 1 UI)
         return const _ProfileTabContent();
-      case 2:
-        // Settings Tab
-        return const _SettingsTabContent();
       default:
         return const _ProfileTabContent();
     }
@@ -173,7 +157,7 @@ class _MainNavigationContainerState extends State<MainNavigationContainer> {
     required String label,
   }) {
     final bool isSelected = _currentIndex == index;
-    final Color color = isSelected ? Colors.white : Colors.white.withOpacity(0.6);
+    final Color color = isSelected ? Colors.white : Colors.white.withValues(alpha: 0.6);
 
     return Expanded(
       child: InkWell(
@@ -364,19 +348,6 @@ class _DashboardTabContent extends StatelessWidget {
     return SizedBox(
       height: 380,
       child: const DashboardScreen(),
-    );
-  }
-}
-
-// SETTINGS TAB CONTENT (Wraps the SettingsScreen structure inside the card)
-class _SettingsTabContent extends StatelessWidget {
-  const _SettingsTabContent();
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 380,
-      child: const SettingsScreen(),
     );
   }
 }

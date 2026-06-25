@@ -1,10 +1,22 @@
-import 'dart:convert';
-
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'dashboard_screen.dart';
+import 'settings_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: const FirebaseOptions(
+      apiKey: "AIzaSyBiSJF5ziZz5XHKJvIAiR83_CYmk2kvKlA",
+      authDomain: "medicinie-app.firebaseapp.com",
+      projectId: "medicinie-app",
+      storageBucket: "medicinie-app.firebasestorage.app",
+      messagingSenderId: "454090128372",
+      appId: "1:454090128372:web:8e6c676f439ac02a7797a1",
+      measurementId: "G-RHVCQDLC4H",
+    ),
+  );
   runApp(const MyApp());
 }
 
@@ -14,251 +26,357 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Medicine App',
+      title: 'UDINUS Student Portal',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
       ),
-      home: const MyHomePage(),
+      home: const MainNavigationContainer(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key});
+class MainNavigationContainer extends StatefulWidget {
+  const MainNavigationContainer({super.key});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<MainNavigationContainer> createState() => _MainNavigationContainerState();
 }
 
-class MedicineItem {
-  MedicineItem({
-    required this.id,
-    required this.kodeObat,
-    required this.namaObat,
-    required this.kategori,
-    required this.satuan,
-    required this.stok,
-    required this.harga,
-  });
-
-  final int id;
-  final String kodeObat;
-  final String namaObat;
-  final String kategori;
-  final String satuan;
-  final int stok;
-  final double harga;
-
-  factory MedicineItem.fromJson(Map<String, dynamic> json) {
-    return MedicineItem(
-      id: _toInt(json['id']),
-      kodeObat: _toString(json['kode_obat']),
-      namaObat: _toString(json['nama_obat']),
-      kategori: _nullableString(json['kategori']) ?? '-',
-      satuan: _nullableString(json['satuan']) ?? '-',
-      stok: _toInt(json['stok']),
-      harga: _toDouble(json['harga']),
-    );
-  }
-
-  static int _toInt(dynamic value) {
-    if (value is int) {
-      return value;
-    }
-
-    if (value is num) {
-      return value.toInt();
-    }
-
-    return int.tryParse(value.toString()) ?? 0;
-  }
-
-  static double _toDouble(dynamic value) {
-    if (value is double) {
-      return value;
-    }
-
-    if (value is num) {
-      return value.toDouble();
-    }
-
-    return double.tryParse(value.toString()) ?? 0;
-  }
-
-  static String _toString(dynamic value) {
-    return value?.toString() ?? '';
-  }
-
-  static String? _nullableString(dynamic value) {
-    final text = value?.toString().trim();
-    if (text == null || text.isEmpty || text == 'null') {
-      return null;
-    }
-
-    return text;
-  }
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-  late Future<List<MedicineItem>> _medicineFuture;
-
-  // Prioritaskan LAN IP agar perangkat fisik mengakses host melalui LAN
-  static final List<Uri> _apiEndpoints = <Uri>[
-    Uri.parse('http://192.168.1.9:8000/api/obat'),
-  ];
-
-  @override
-  void initState() {
-    super.initState();
-    _medicineFuture = _loadMedicines();
-  }
-
-  Future<List<MedicineItem>> _loadMedicines() async {
-    final errors = <String>[];
-
-    for (final endpoint in _apiEndpoints) {
-      try {
-        final response = await http
-            .get(endpoint)
-            .timeout(const Duration(seconds: 10));
-
-        if (response.statusCode < 200 || response.statusCode >= 300) {
-          throw Exception('status ${response.statusCode}');
-        }
-
-        final decodedBody = jsonDecode(response.body);
-        final rawItems = _extractItems(decodedBody);
-
-        return rawItems
-            .whereType<Map<String, dynamic>>()
-            .map(MedicineItem.fromJson)
-            .toList(growable: false);
-      } catch (error, stackTrace) {
-        final detail = '${endpoint.toString()}: $error\n$stackTrace';
-        errors.add(detail);
-        debugPrint('Error fetching $endpoint: $error');
-        debugPrintStack(
-          label: 'API fetch stacktrace for $endpoint',
-          stackTrace: stackTrace,
-        );
-      }
-    }
-
-    throw Exception(
-      'Gagal memuat list obat dari API.\n${errors.join('\n---\n')}',
-    );
-  }
-
-  List<dynamic> _extractItems(dynamic decodedBody) {
-    if (decodedBody is List) {
-      return decodedBody;
-    }
-
-    if (decodedBody is Map<String, dynamic>) {
-      final candidates = <dynamic>[
-        decodedBody['data'],
-        decodedBody['obat'],
-        decodedBody['results'],
-      ];
-
-      for (final candidate in candidates) {
-        if (candidate is List) {
-          return candidate;
-        }
-      }
-
-      final singleItem = decodedBody['data'];
-      if (singleItem is Map<String, dynamic>) {
-        return <dynamic>[singleItem];
-      }
-    }
-
-    throw Exception('Format response API tidak dikenali');
-  }
-
-  Future<void> _refreshMedicines() async {
-    setState(() {
-      _medicineFuture = _loadMedicines();
-    });
-  }
+class _MainNavigationContainerState extends State<MainNavigationContainer> {
+  int _currentIndex = 1; // Profile tab selected by default as in Screen 1
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('List Obat'),
-        actions: [
-          IconButton(
-            onPressed: _refreshMedicines,
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh',
-          ),
-        ],
-      ),
-      body: FutureBuilder<List<MedicineItem>>(
-        future: _medicineFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (snapshot.hasError) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Text(
-                  snapshot.error.toString(),
-                  textAlign: TextAlign.center,
+      backgroundColor: const Color(0xFF0F1E36), // Deep navy blue background
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+              child: Card(
+                elevation: 12,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                clipBehavior: Clip.antiAliasWithSaveLayer,
+                child: Container(
+                  width: double.infinity,
+                  color: Colors.white,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Card Header: UDINUS Banner
+                      Container(
+                        color: const Color(0xFF2196F3), // Bright blue
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 42,
+                              height: 42,
+                              padding: const EdgeInsets.all(2),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Image.network(
+                                'https://cc.dinus.ac.id/assets/img/logo-udinus.png',
+                                errorBuilder: (context, error, stackTrace) {
+                                  return const Icon(
+                                    Icons.school,
+                                    color: Color(0xFF2196F3),
+                                    size: 24,
+                                  );
+                                },
+                                fit: BoxFit.contain,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            const Expanded(
+                              child: Text(
+                                'UNIVERSITAS DIAN NUSWANTORO',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Card Body: Swapped based on tab
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(
+                          minHeight: 380,
+                        ),
+                        child: _buildBodyContent(),
+                      ),
+                      // Card Footer: Custom Bottom Navigation Bar
+                      Container(
+                        color: const Color(0xFF2196F3), // Bright blue navigation background
+                        height: 64,
+                        child: Row(
+                          children: [
+                            _buildNavItem(
+                              index: 0,
+                              icon: Icons.person, // Labeled "Dashboard" in screenshot
+                              label: 'Dashboard',
+                            ),
+                            _buildNavItem(
+                              index: 1,
+                              icon: Icons.book, // Labeled "Profile" in screenshot
+                              label: 'Profile',
+                            ),
+                            _buildNavItem(
+                              index: 2,
+                              icon: Icons.settings, // Labeled "Setting" in screenshot
+                              label: 'Setting',
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            );
-          }
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
-          final medicines = snapshot.data ?? <MedicineItem>[];
+  Widget _buildBodyContent() {
+    switch (_currentIndex) {
+      case 0:
+        // Dashboard Tab
+        return const _DashboardTabContent();
+      case 1:
+        // Profile Tab (Matches Screen 1 UI)
+        return const _ProfileTabContent();
+      case 2:
+        // Settings Tab
+        return const _SettingsTabContent();
+      default:
+        return const _ProfileTabContent();
+    }
+  }
 
-          if (medicines.isEmpty) {
-            return const Center(
-              child: Text('Belum ada data obat di tabel obat.'),
-            );
-          }
+  Widget _buildNavItem({
+    required int index,
+    required IconData icon,
+    required String label,
+  }) {
+    final bool isSelected = _currentIndex == index;
+    final Color color = isSelected ? Colors.white : Colors.white.withOpacity(0.6);
 
-          return RefreshIndicator(
-            onRefresh: _refreshMedicines,
-            child: ListView.separated(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(16),
-              itemCount: medicines.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 12),
-              itemBuilder: (context, index) {
-                final medicine = medicines[index];
-                final leadingText = medicine.kodeObat.isNotEmpty
-                    ? medicine.kodeObat.characters.take(2).join().toUpperCase()
-                    : '?';
+    return Expanded(
+      child: InkWell(
+        onTap: () {
+          setState(() {
+            _currentIndex = index;
+          });
+        },
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              color: color,
+              size: 24,
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
-                return Card(
-                  child: ListTile(
-                    leading: CircleAvatar(child: Text(leadingText)),
-                    title: Text(medicine.namaObat),
-                    subtitle: Text(
-                      '${medicine.kodeObat} • ${medicine.kategori} • ${medicine.satuan}',
-                    ),
-                    trailing: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text('Stok: ${medicine.stok}'),
-                        Text('Rp ${medicine.harga.toStringAsFixed(0)}'),
-                      ],
-                    ),
-                  ),
-                );
-              },
+// PROFILE TAB CONTENT
+class _ProfileTabContent extends StatelessWidget {
+  const _ProfileTabContent();
+
+  Future<DocumentSnapshot> _getOrCreateProfile() async {
+    final docRef = FirebaseFirestore.instance.collection('profil').doc('baby_bozz');
+    final doc = await docRef.get();
+    if (!doc.exists) {
+      // Seed default profile data
+      await docRef.set({
+        'nim': 'A18.1234567',
+        'nama': 'Baby Bozz',
+        'jurusan': 'Teknik Informatika',
+        'email': 'babybosscoy@udin.ac.id',
+        'telepon': '08852342344',
+        'foto': 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=300&h=300&fit=crop',
+      });
+      return await docRef.get();
+    }
+    return doc;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<DocumentSnapshot>(
+      future: _getOrCreateProfile(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Text(
+                'Gagal memuat profil: ${snapshot.error}',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.red),
+              ),
             ),
           );
-        },
-      ),
+        }
+
+        final data = snapshot.data?.data() as Map<String, dynamic>? ?? {};
+        final String nim = data['nim'] ?? 'A18.1234567';
+        final String nama = data['nama'] ?? 'Baby Bozz';
+        final String jurusan = data['jurusan'] ?? 'Teknik Informatika';
+        final String email = data['email'] ?? 'babybosscoy@udin.ac.id';
+        final String telepon = data['telepon'] ?? '08852342344';
+        final String foto = data['foto'] ?? '';
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 24.0, horizontal: 16.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Student Profile Photo
+              ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: SizedBox(
+                  width: 140,
+                  height: 160,
+                  child: foto.isNotEmpty
+                      ? Image.network(
+                          foto,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              color: Colors.grey.shade300,
+                              child: const Icon(
+                                Icons.person,
+                                size: 80,
+                                color: Colors.grey,
+                              ),
+                            );
+                          },
+                        )
+                      : Container(
+                          color: Colors.grey.shade300,
+                          child: const Icon(
+                            Icons.person,
+                            size: 80,
+                            color: Colors.grey,
+                          ),
+                        ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              // NIM
+              Text(
+                nim,
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w400,
+                  color: Colors.black87,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 4),
+              // Nama
+              Text(
+                nama,
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 4),
+              // Jurusan
+              Text(
+                jurusan,
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w400,
+                  color: Colors.black87,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 6),
+              // Email
+              Text(
+                email,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey.shade700,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 4),
+              // Telepon
+              Text(
+                telepon,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey.shade700,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+// DASHBOARD TAB CONTENT (Wraps the DashboardScreen structure inside the card)
+class _DashboardTabContent extends StatelessWidget {
+  const _DashboardTabContent();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 380,
+      child: const DashboardScreen(),
+    );
+  }
+}
+
+// SETTINGS TAB CONTENT (Wraps the SettingsScreen structure inside the card)
+class _SettingsTabContent extends StatelessWidget {
+  const _SettingsTabContent();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 380,
+      child: const SettingsScreen(),
     );
   }
 }
